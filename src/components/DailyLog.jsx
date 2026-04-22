@@ -1,14 +1,22 @@
 import { useState, useEffect } from 'react';
+import { saveWorkout } from '../hooks/useWorkouts';
 import ActivityForm from './ActivityForm';
 import { defaultActivities } from '../data/defaultActivities';
 
-const DailyLog = () => {
+const DailyLog = ({ uid }) => {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
   useEffect(() => {
-    // Initialize with defaults if no data
+    if (!uid) {
+      setLoading(false);
+      return;
+    }
+
+    // TODO: Load today's workout from Firestore using uid/date
+    // For now, init with defaults
     const initActivities = defaultActivities.map(name => ({
       name,
       sets: [],
@@ -16,7 +24,7 @@ const DailyLog = () => {
     }));
     setActivities(initActivities);
     setLoading(false);
-  }, []);
+  }, [uid]);
 
   const updateSets = (activityName, newSets) => {
     setActivities(activities.map(act => 
@@ -30,14 +38,24 @@ const DailyLog = () => {
     ));
   };
 
-  const saveWorkout = () => {
-    const workoutData = {
-      date: today,
-      activities
-    };
-    console.log('Saving workout:', workoutData);
-    // TODO: Save to Firestore
-    alert('Workout saved to console (Firebase integration next)!');
+  const handleSaveWorkout = async () => {
+    if (!uid) return;
+
+    setSaving(true);
+    try {
+      const workoutData = {
+        uid,
+        date: today,
+        activities
+      };
+      await saveWorkout(uid, workoutData);
+      alert('Workout saved to Firestore!');
+    } catch (err) {
+      console.error('Save error:', err);
+      alert('Save failed - check Firebase config');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) return <div className="p-8 text-center">Loading...</div>;
@@ -62,10 +80,11 @@ const DailyLog = () => {
         </div>
 
         <button 
-          onClick={saveWorkout}
-          className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-8 rounded-xl text-xl shadow-lg hover:shadow-xl transition-all duration-200"
+          onClick={handleSaveWorkout}
+          disabled={saving || !uid}
+          className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-bold py-4 px-8 rounded-xl text-xl shadow-lg hover:shadow-xl transition-all duration-200"
         >
-          Save Today's Workout
+          {saving ? 'Saving...' : 'Save Today\'s Workout'}
         </button>
       </div>
     </div>
